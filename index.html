@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e1e2e">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dream-Link • MASTER RESULT Online</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb; --bg: #f8fafc; --surface: #ffffff;
+            --text: #0f172a; --text-muted: #64748b; --border: #e2e8f0;
+            --sidebar-w: 280px;
+        }
+        * { box-sizing: border-box; outline: none; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; }
+
+        /* --- LOGIN --- */
+        #loginOverlay { position: fixed; inset: 0; background: rgba(255,255,255,0.98); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: white; padding: 30px; border-radius: 12px; border: 1px solid var(--border); width: 340px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); text-align: center; }
+        .inp-login { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; background: #f8fafc; }
+        .btn-login { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition:0.2s; }
+        .btn-login:hover { background: #1d4ed8; }
+
+        /* --- SIDEBAR --- */
+        .sidebar { width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; transition: margin-left 0.3s ease; z-index: 20; flex-shrink: 0; }
+        .sidebar.collapsed { margin-left: calc(var(--sidebar-w) * -1); }
+        .sb-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .sb-content { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
+        
+        .panel { background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
+        .lbl { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.5px; }
+        .radio-row { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; margin-bottom: 6px; cursor: pointer; font-weight: 500; }
+        .inp-std { width: 100%; padding: 8px; font-size: 0.85rem; border: 1px solid #cbd5e1; border-radius: 6px; }
+        .btn { width: 100%; padding: 10px; font-size: 0.8rem; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; }
+        .btn-go { background: var(--primary); color: white; }
+        .btn-del { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; }
+        .btn:hover { opacity: 0.9; transform:translateY(-1px); }
+        .btn:disabled { opacity: 0.6; cursor: wait; }
+
+        /* --- MAIN --- */
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; width: 100%; }
+        .top-bar { height: 56px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+        .toggle-btn { cursor: pointer; padding: 8px; border-radius: 6px; background: #f1f5f9; color: var(--text); border: 1px solid var(--border); transition:0.2s; }
+        .toggle-btn:hover { background: #e2e8f0; }
+
+        .progress-cont { height: 3px; background: transparent; width: 100%; }
+        .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: width 0.2s; }
+
+        /* --- TABLE --- */
+        .table-wrap { flex: 1; overflow: auto; background: white; padding-bottom: 60px; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.8rem; table-layout: fixed; min-width: 900px; }
+        th { position: sticky; top: 0; background: #f8fafc; color: var(--text-muted); text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border); font-size: 0.7rem; text-transform: uppercase; font-weight: 800; z-index: 5; }
+        td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; background: white; }
+        tr:hover td { background: #f8fafc; }
+
+        /* --- CELLS --- */
+        .id-grp { line-height: 1.4; display: flex; flex-direction: column; }
+        .id-name { font-weight: 800; color: var(--primary); font-size: 0.9rem; }
+        .id-parent { font-size: 0.75rem; color: #475569; font-weight: 500; }
+        .id-meta { display: flex; gap: 6px; margin-top: 4px; align-items: center; }
+        .cat-badge { background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; }
+        
+        .data-cell { display: flex; flex-direction: column; gap: 3px; }
+        .dc-row { display: flex; justify-content: space-between; gap: 10px; font-size: 0.75rem; }
+        .dc-lbl { color: #94a3b8; font-weight: 700; font-size: 0.65rem; text-transform: uppercase; }
+        .dc-val { font-weight: 700; font-family: 'JetBrains Mono'; color: #0f172a; }
+        .roll-pill { font-family: 'JetBrains Mono'; font-size: 0.7rem; background: #f8fafc; color: #64748b; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0; width: fit-content; margin-bottom: 5px; font-weight: 600; }
+        .rank-pill { background: #fffbeb; color: #b45309; border: 1px solid #fcd34d; font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; }
+        
+        .common-row td { background: #f0fdf4; }
+        .common-row:hover td { background: #dcfce7; }
+        .st-badge { background: #16a34a; color: white; padding: 3px 8px; border-radius: 20px; font-weight: 800; font-size: 0.65rem; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2); }
+
+        .act-grp { display: flex; gap: 4px; justify-content: center; }
+        .act-btn { cursor: pointer; padding: 6px; border-radius: 6px; color: #64748b; border: 1px solid #e2e8f0; background: white; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+        .act-btn:hover { background: #f1f5f9; color: var(--text); border-color: #cbd5e1; }
+        .act-del:hover { background: #fef2f2; border-color: #fca5a5; color: #ef4444; }
+
+        .tb-grp { display: flex; gap: 8px; align-items: center; }
+        .tb-btn { background: white; border: 1px solid #e2e8f0; color: #334155; font-size: 0.75rem; font-weight: 700; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.2s; }
+        .tb-btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .tb-primary { background: #0f172a; color: white; border: none; }
+        .tb-primary:hover { background: #1e293b; }
+
+        @media print {
+            .sidebar, .top-bar, .no-print, #loginOverlay { display: none !important; }
+            .table-wrap { overflow: visible; height: auto; padding: 0; }
+            body, .main { height: auto; overflow: visible; background: white; }
+            table { width: 100%; min-width: 0; table-layout: auto; }
+            th, td { border: 1px solid #000; padding: 6px; font-size: 10px; }
+            th { background: #eee !important; color: #000 !important; -webkit-print-color-adjust: exact; }
+            .common-row td { background: #f0fdf4 !important; -webkit-print-color-adjust: exact; }
+            .act-col, .act-header { display: none; }
+            .roll-pill { border: 1px solid #000; color: #000; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h3 style="margin:0 0 5px 0; color:var(--primary); font-weight:900;">DREAM-LINK</h3>
+            <p style="margin:0 0 20px 0; font-size:0.8rem; color:#64748b;">Secure Data Access Portal</p>
+            <input type="email" id="txtEmail" class="inp-login" placeholder="Email Address">
+            <input type="password" id="txtPwd" class="inp-login" placeholder="Password">
+            <button class="btn-login" onclick="login()">LOGIN NOW</button>
+            <div id="loginMsg" style="color:#ef4444; font-size:0.75rem; margin-top:10px; font-weight:600;"></div>
+        </div>
+    </div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sb-header">
+            <div style="font-weight:900; color:var(--primary); font-size:1rem; display:flex; align-items:center; gap:8px;">
+                <i class="ph-fill ph-circles-three-plus"></i> DATA LAB
+            </div>
+            <div class="toggle-btn" onclick="toggleSidebar()" style="padding:4px;"><i class="ph-bold ph-x"></i></div>
+        </div>
+        
+        <div class="sb-content">
+            <div class="panel">
+                <span class="lbl">1. SOURCE EXAM (Local Saved)</span>
+                <label class="radio-row"><input type="radio" name="src" value="patwari2025" checked onchange="saveSrcPref(this)"> Patwar 2025</label>
+                <label class="radio-row"><input type="radio" name="src" value="vdo2025" onchange="saveSrcPref(this)"> VDO 2025</label>
+                <label class="radio-row"><input type="radio" name="src" value="fourthgrade2025" onchange="saveSrcPref(this)"> 4th Grade</label>
+            </div>
+
+            <div class="panel">
+                <span class="lbl">2. MANUAL SEARCH</span>
+                <div style="display:flex; gap:6px;">
+                    <input type="number" id="inpRoll" class="inp-std" placeholder="Roll Number">
+                    <button class="btn-go" style="width:auto; padding:0 12px;" onclick="runManual()"><i class="ph-bold ph-magnifying-glass"></i></button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <span class="lbl">3. BULK SEARCH (CSV)</span>
+                <input type="file" id="inpCSV" accept=".csv" class="inp-std">
+                <button class="btn-go" style="margin-top:8px;" id="btnBulk" onclick="runBulk()">
+                    <i class="ph-bold ph-lightning"></i> RUN BATCH SEARCH
+                </button>
+                <div style="font-size:0.65rem; color:#64748b; margin-top:6px; line-height:1.3;">
+                    * Auto-detects columns if headers exist (PATWAR, VDO, GRADE4).
+                </div>
+            </div>
+
+            <div style="margin-top:auto;">
+                <button class="btn-del" onclick="clearTable()"><i class="ph-bold ph-trash"></i> CLEAR ALL DATA</button>
+                <div style="text-align:center; font-size:0.7rem; color:#94a3b8; margin-top:15px; cursor:pointer; font-weight:600;" onclick="logout()">LOGOUT SESSION</div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="top-bar">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div class="toggle-btn no-print" onclick="toggleSidebar()"><i class="ph-bold ph-list"></i></div>
+                <div>
+                    <div style="font-weight:800; font-size:0.9rem; color:var(--text);">UNIVERSAL SEARCH</div>
+                    <div style="font-size:0.7rem; color:#64748b;">Strict Match: Name + Father + Mother</div>
+                </div>
+            </div>
+            
+            <div class="tb-grp no-print">
+                <button class="tb-btn" title="Sort by Name" onclick="sortData('name')"><i class="ph-bold ph-text-aa"></i> A-Z</button>
+                <button class="tb-btn" title="Sort by Matches" onclick="sortData('common')"><i class="ph-bold ph-star"></i> Matches</button>
+                <button class="tb-btn" title="Sort by Newest" onclick="sortData('time')"><i class="ph-bold ph-clock"></i> Newest</button>
+                
+                <div style="width:1px; height:20px; background:#e2e8f0; margin:0 4px;"></div>
+
+                <input type="file" id="inpImport" accept=".csv" style="display:none;" onchange="importTable(this)">
+                
+                <button class="tb-btn" onclick="document.getElementById('inpImport').click()">
+                    <i class="ph-bold ph-upload"></i> Load
+                </button>
+                <button class="tb-btn" onclick="saveTableCSV()">
+                    <i class="ph-bold ph-download"></i> Save
+                </button>
+                <button class="tb-btn tb-primary" onclick="window.print()">
+                    <i class="ph-bold ph-printer"></i> Print
+                </button>
+            </div>
+        </div>
+        
+        <div class="progress-cont"><div class="progress-bar" id="pBar"></div></div>
+
+        <div class="table-wrap">
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th style="width:220px;">IDENTITY & CATEGORY</th>
+                        <th>PATWAR 2025</th>
+                        <th>VDO 2025</th>
+                        <th>4TH GRADE</th>
+                        <th style="width:90px; text-align:center;">STATUS</th>
+                        <th style="width:90px; text-align:center;" class="act-header">ACTION</th>
+                    </tr>
+                </thead>
+                <tbody id="tBody"></tbody>
+            </table>
+        </div>
+        
+        <div style="position:absolute; bottom:0; left:0; width:100%; background:white; border-top:1px solid #e2e8f0; padding:8px 20px; font-size:0.75rem; display:flex; justify-content:space-between; color:#64748b;" class="no-print">
+            <span>Rows Loaded: <b id="procCount" style="color:var(--text)">0</b></span>
+            <span>Cloud Synced (Max 100)</span>
+        </div>
+    </main>
+
+    <script>
+        // --- CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAiLtCapS9zH6JMA_S3EpRm84kR90IUALI",
+            authDomain: "examdata.firebaseapp.com",
+            databaseURL: "https://examdata-default-rtdb.firebaseio.com",
+            projectId: "examdata",
+            storageBucket: "examdata.firebasestorage.app",
+            messagingSenderId: "658962316072",
+            appId: "1:658962316072:web:9b78511acbe17f97a6ee1d"
+        };
+
+        let tableData = [];
+
+        // --- INIT ---
+        try {
+            firebase.initializeApp(firebaseConfig);
+            window.auth = firebase.auth();
+            window.db = firebase.database();
+            
+            auth.onAuthStateChanged(u => {
+                document.getElementById('loginOverlay').style.display = u ? 'none' : 'flex';
+                if(u) {
+                    startCloudSync(); // Switch to Cloud
+                    loadSrcPref();
+                }
+            });
+        } catch(e) { console.error(e); }
+
+        function login() {
+            const e = document.getElementById('txtEmail').value;
+            const p = document.getElementById('txtPwd').value;
+            auth.signInWithEmailAndPassword(e, p).catch(err => document.getElementById('loginMsg').innerText = "Access Denied");
+        }
+        function logout() { auth.signOut(); location.reload(); }
+
+        // --- CLOUD SYNC & SORTING ---
+        
+        // 1. Save to Firebase (With 100 Limit)
+        function saveToCloud() {
+            // Limit Rule: Keep only top 100 records
+            if(tableData.length > 100) {
+                tableData = tableData.slice(0, 100);
+            }
+            
+            // Save to 'result_table' node in Firebase
+            db.ref('result_table').set(tableData).then(() => {
+                updateCount();
+            }).catch(e => console.error("Sync Error:", e));
+        }
+
+        // 2. Realtime Listener (Syncs across devices)
+        function startCloudSync() {
+            db.ref('result_table').on('value', (snap) => {
+                const val = snap.val();
+                // Ensure it's an array, handle null
+                tableData = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
+                renderAll();
+                updateCount();
+            });
+        }
+
+        function updateCount() { document.getElementById('procCount').innerText = tableData.length + " / 100"; }
+
+        // 3. Sorting Logic
+        function sortData(type) {
+            if(tableData.length === 0) return;
+
+            if(type === 'name') {
+                tableData.sort((a, b) => a.identity.name.localeCompare(b.identity.name));
+            } 
+            else if(type === 'common') {
+                // Sort by Common Count (High to Low)
+                tableData.sort((a, b) => b.commonCount - a.commonCount);
+            } 
+            else if(type === 'time') {
+                // Sort by Timestamp (Newest First)
+                tableData.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            }
+            
+            // Save sorted order to cloud so it reflects everywhere
+            saveToCloud();
+        }
+
+        // --- SOURCE PREFERENCE SAVING ---
+        function saveSrcPref(radio) { localStorage.setItem('prefSrcExam', radio.value); }
+        function loadSrcPref() {
+            const pref = localStorage.getItem('prefSrcExam');
+            if(pref) {
+                const radios = document.getElementsByName('src');
+                for(let r of radios) { if(r.value === pref) r.checked = true; }
+            }
+        }
+
+        // --- UTILS ---
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+        function setBusy(b) {
+            const btn = document.getElementById('btnBulk');
+            btn.disabled = b;
+            btn.innerHTML = b ? 'PROCESSING...' : `<i class="ph-bold ph-lightning"></i> RUN BATCH SEARCH`;
+        }
+        function clearTable() { if(confirm("Delete all data from Cloud?")) { tableData = []; saveToCloud(); renderAll(); } }
+
+        const clean = (s) => s ? String(s).trim().toLowerCase().replace(/\s+/g, ' ') : '';
+        function getSrcExam() {
+            const radios = document.getElementsByName('src');
+            for(let r of radios) if(r.checked) return r.value;
+            return 'patwari2025';
+        }
+
+        // --- SEARCH LOGIC ---
+        async function runManual() {
+            const roll = document.getElementById('inpRoll').value;
+            if(!roll) return alert("Enter Roll Number");
+            setBusy(true);
+            const res = await processRoll(roll, getSrcExam());
+            if(res) {
+                // Add to TOP
+                tableData.unshift(res); 
+                saveToCloud();
+                // renderAll handles by sync
+            } else { alert("No Data Found"); }
+            setBusy(false);
+            document.getElementById('inpRoll').value = '';
+        }
+
+        // --- IMPROVED BULK SEARCH ---
+        async function runBulk() {
+            const fileIn = document.getElementById('inpCSV');
+            if(!fileIn.files.length) return alert("Select CSV File");
+            
+            const srcExam = getSrcExam();
+            
+            setBusy(true);
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const rows = e.target.result.split('\n').map(r => r.trim()).filter(r => r);
+                const total = rows.length;
+                let newRows = [];
+
+                const headers = rows[0].split(',').map(h => h.trim().toUpperCase());
+                let targetColIdx = -1;
+
+                if(srcExam === 'patwari2025') targetColIdx = headers.findIndex(h => h.includes('PATWAR'));
+                else if(srcExam === 'vdo2025') targetColIdx = headers.findIndex(h => h.includes('VDO'));
+                else if(srcExam === 'fourthgrade2025') targetColIdx = headers.findIndex(h => h.includes('GRADE') || h.includes('4TH'));
+                
+                let startIdx = (targetColIdx !== -1) ? 1 : 0;
+
+                for(let i = startIdx; i < total; i++) {
+                    const cols = rows[i].split(',').map(c => c.trim());
+                    let roll = null;
+
+                    if(targetColIdx !== -1 && cols[targetColIdx]) {
+                        roll = cols[targetColIdx]; 
+                    } else {
+                        if(cols.length >= 3) {
+                             if(srcExam === 'patwari2025') roll = cols[0];
+                             else if(srcExam === 'vdo2025') roll = cols[1];
+                             else if(srcExam === 'fourthgrade2025') roll = cols[2];
+                             if(!roll || isNaN(roll)) roll = null; 
+                        } 
+                        if(!roll) {
+                             if(cols.length < 2) roll = cols.find(c => !isNaN(c) && c.length > 0);
+                        }
+                    }
+                    
+                    if(roll && !isNaN(roll)) {
+                         const res = await processRoll(roll, srcExam);
+                         if(res) newRows.push(res);
+                    }
+                    
+                    document.getElementById('pBar').style.width = ((i+1)/total*100) + '%';
+                    if(i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+                }
+                
+                tableData = [...newRows, ...tableData];
+                saveToCloud(); // Handles limit and sync
+                setBusy(false);
+                document.getElementById('pBar').style.width = '0%';
+            };
+            reader.readAsText(fileIn.files[0]);
+        }
+
+        // --- CORE PROCESSOR ---
+        async function processRoll(roll, srcId) {
+            let srcData = null;
+            try {
+                const s = await db.ref(`exams/${srcId}/byroll/${roll}`).once('value');
+                if(s.exists()) srcData = s.val();
+            } catch(e){}
+
+            if(!srcData) return null;
+
+            const res = {
+                timestamp: Date.now(), // Added for Sorting
+                srcRoll: roll,
+                srcId: srcId,
+                identity: { name: srcData.candidate, father: srcData.father, mother: srcData.mother },
+                category: srcData.category || 'NA',
+                exams: { patwari2025: null, vdo2025: null, fourthgrade2025: null },
+                commonCount: 1
+            };
+
+            res.exams[srcId] = { ...srcData, roll: roll }; 
+
+            const targets = ['patwari2025', 'vdo2025', 'fourthgrade2025'].filter(x => x !== srcId);
+            const matches = await Promise.all(targets.map(tid => findStrict(tid, res.identity)));
+            
+            targets.forEach((tid, i) => {
+                if(matches[i]) {
+                    res.exams[tid] = matches[i];
+                    res.commonCount++;
+                }
+            });
+
+            return res;
+        }
+
+        async function findStrict(examId, ident) {
+            if(!ident.name) return null;
+            const nameKey = ident.name.trim().toLowerCase().replace(/\s+/g, '_');
+            const cFather = clean(ident.father);
+            const cMother = clean(ident.mother);
+
+            try {
+                const snap = await db.ref(`exams/${examId}/byname`).orderByKey().startAt(nameKey).endAt(nameKey + "\uf8ff").limitToFirst(50).once('value');
+                if(!snap.exists()) return null;
+
+                const val = snap.val();
+                let candidates = [];
+                Object.values(val).forEach(v => {
+                    if(typeof v === 'object') candidates.push(...Object.keys(v));
+                    else candidates.push(v);
+                });
+
+                for(const r of candidates) {
+                    const dSnap = await db.ref(`exams/${examId}/byroll/${r}`).once('value');
+                    if(dSnap.exists()) {
+                        const d = dSnap.val();
+                        if(clean(d.father) === cFather && clean(d.mother) === cMother) {
+                            return { ...d, roll: r }; 
+                        }
+                    }
+                }
+            } catch(e) { return null; }
+            return null;
+        }
+
+        // --- RENDER ---
+        function renderAll() {
+            const tbody = document.getElementById('tBody');
+            tbody.innerHTML = '';
+            
+            if(tableData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:40px; color:#94a3b8;">No records loaded. Use Manual Search or Import CSV.</td></tr>`;
+                return;
+            }
+
+            tableData.forEach((d, idx) => {
+                const tr = document.createElement('tr');
+                if(d.commonCount > 1) tr.classList.add('common-row');
+                
+                const cIdx = `<td>${idx+1}</td>`;
+                const cId = `
+                    <td>
+                        <div class="id-grp">
+                            <div class="id-name">${d.identity.name}</div>
+                            <span class="id-parent">F: ${d.identity.father}</span>
+                            <span class="id-parent">M: ${d.identity.mother}</span>
+                            <div class="id-meta"><span class="cat-badge">${d.category}</span></div>
+                        </div>
+                    </td>`;
+
+                const mkCell = (eid) => {
+                    const data = d.exams[eid];
+                    if(!data) return `<td><span style="color:#e2e8f0; font-size:1.5rem;">—</span></td>`;
+                    
+                    const raw = data.raw ? parseFloat(data.raw).toFixed(2) : '-';
+                    const fin = (data.finalmarks || data.normalized || data.raw || 0);
+                    const finFmt = parseFloat(fin).toFixed(2);
+                    const roll = data.roll || '-';
+                    
+                    return `
+                        <td>
+                            <div class="roll-pill">${roll}</div>
+                            <div class="data-cell">
+                                <div class="dc-row"><span class="dc-lbl">RAW</span><span class="dc-val" style="color:#64748b">${raw}</span></div>
+                                <div class="dc-row"><span class="dc-lbl">FINAL</span><span class="dc-val" style="color:var(--primary)">${finFmt}</span></div>
+                                <div style="margin-top:2px;">
+                                     <span class="rank-pill">#${data.merit || 'NA'}</span>
+                                </div>
+                            </div>
+                        </td>`;
+                };
+
+                const cStat = `<td style="text-align:center; vertical-align:middle;">${d.commonCount > 1 ? `<span class="st-badge">${d.commonCount}</span>` : `<span style="color:#cbd5e1; font-weight:700; font-size:0.6rem;">SINGLE</span>`}</td>`;
+
+                const cAct = `
+                    <td class="act-col">
+                        <div class="act-grp">
+                            <button class="act-btn" onclick="moveRow(${idx}, -1)" title="Up"><i class="ph-bold ph-arrow-up"></i></button>
+                            <button class="act-btn" onclick="moveRow(${idx}, 1)" title="Down"><i class="ph-bold ph-arrow-down"></i></button>
+                            <button class="act-btn act-del" onclick="deleteRow(${idx})" title="Remove"><i class="ph-bold ph-x"></i></button>
+                        </div>
+                    </td>`;
+
+                tr.innerHTML = cIdx + cId + mkCell('patwari2025') + mkCell('vdo2025') + mkCell('fourthgrade2025') + cStat + cAct;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- ROW OPS ---
+        function moveRow(idx, dir) {
+            if((dir===-1 && idx===0) || (dir===1 && idx===tableData.length-1)) return;
+            [tableData[idx], tableData[idx+dir]] = [tableData[idx+dir], tableData[idx]];
+            saveToCloud();
+        }
+        function deleteRow(idx) {
+            tableData.splice(idx,1); saveToCloud();
+        }
+
+        // --- SAVE/IMPORT SYSTEM ---
+        function saveTableCSV() {
+            if(tableData.length === 0) return alert("Table is empty!");
+            
+            // CSV Includes Headers for Auto-Detection Next Time
+            let csv = "SRC_ROLL,SRC_EXAM,PATWAR_ROLL,VDO_ROLL,GRADE4_ROLL,NAME,FATHER,MOTHER,CAT\n";
+            
+            tableData.forEach(r => {
+                const sRoll = r.srcRoll;
+                const sExam = r.srcId;
+                const pRoll = r.exams.patwari2025?.roll || "";
+                const vRoll = r.exams.vdo2025?.roll || "";
+                const gRoll = r.exams.fourthgrade2025?.roll || "";
+                const name = r.identity.name.replace(/,/g, '');
+                const fath = r.identity.father.replace(/,/g, '');
+                const moth = r.identity.mother.replace(/,/g, '');
+                const cat = r.category;
+                
+                csv += `${sRoll},${sExam},${pRoll},${vRoll},${gRoll},${name},${fath},${moth},${cat}\n`;
+            });
+            
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `DreamLink_Saved_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a); a.click();
+        }
+
+        function importTable(input) {
+            if(!input.files.length) return;
+            const reader = new FileReader();
+            
+            reader.onload = async (e) => {
+                const rows = e.target.result.split('\n');
+                
+                if(!rows[0].startsWith("SRC_ROLL,SRC_EXAM")) {
+                    alert("This seems to be a raw CSV. Please use 'Run Batch Search' instead.");
+                    return;
+                }
+                
+                if(!confirm("Replace current Cloud data with this backup?")) return;
+                tableData = [];
+                setBusy(true);
+                
+                for(let i=1; i<rows.length; i++) {
+                    const r = rows[i].trim();
+                    if(!r) continue;
+                    const c = r.split(',');
+                    
+                    const res = await processRoll(c[0], c[1]);
+                    if(res) tableData.push(res);
+                    
+                    document.getElementById('pBar').style.width = ((i)/rows.length*100) + '%';
+                    if(i%10===0) await new Promise(r => setTimeout(r,0));
+                }
+                
+                saveToCloud();
+                setBusy(false);
+                document.getElementById('pBar').style.width = '0%';
+                input.value = ''; 
+            };
+            reader.readAsText(input.files[0]);
+        }
+    </script>
+  <script>
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');
+</script>
+</body>
+</html>
