@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dream-Link • MASTER RESULT TABLE</title>
+    <title>Result_Table</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -17,17 +16,21 @@
             --text: #0f172a; --text-muted: #64748b; --border: #e2e8f0;
             --sidebar-w: 280px;
         }
-        * { box-sizing: border-box; outline: none; }
+        * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
         body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; }
 
-        /* --- LOGIN --- */
-        #loginOverlay { position: fixed; inset: 0; background: rgba(255,255,255,0.98); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        #loginOverlay, #procOverlay { position: fixed; inset: 0; background: rgba(255,255,255,0.98); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        #procOverlay { background: rgba(0,0,0,0.85); flex-direction: column; display: none; }
+        .proc-box { width: 90%; max-width: 400px; background: #0f172a; border-radius: 12px; border: 1px solid #334155; padding: 20px; color: #f8fafc; display: flex; flex-direction: column; max-height: 80vh; }
+        .proc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #1e293b; padding-bottom: 10px; }
+        .proc-logs { flex: 1; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: #94a3b8; display: flex; flex-direction: column; gap: 4px; scroll-behavior: smooth; }
+        .log-line { border-bottom: 1px solid #1e293b; padding-bottom: 2px; }
+        .log-success { color: #4ade80; } .log-fail { color: #f87171; } .log-info { color: #60a5fa; }
+
         .login-box { background: white; padding: 30px; border-radius: 12px; border: 1px solid var(--border); width: 340px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); text-align: center; }
         .inp-login { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; background: #f8fafc; }
         .btn-login { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition:0.2s; }
-        .btn-login:hover { background: #1d4ed8; }
-
-        /* --- SIDEBAR --- */
+        
         .sidebar { width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; transition: margin-left 0.3s ease; z-index: 20; flex-shrink: 0; }
         .sidebar.collapsed { margin-left: calc(var(--sidebar-w) * -1); }
         .sb-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
@@ -40,26 +43,16 @@
         .btn { width: 100%; padding: 10px; font-size: 0.8rem; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; }
         .btn-go { background: var(--primary); color: white; }
         .btn-del { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; }
-        .btn:hover { opacity: 0.9; transform:translateY(-1px); }
-        .btn:disabled { opacity: 0.6; cursor: wait; }
-
-        /* --- MAIN --- */
+        
         .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; width: 100%; }
-        .top-bar { height: 56px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
-        .toggle-btn { cursor: pointer; padding: 8px; border-radius: 6px; background: #f1f5f9; color: var(--text); border: 1px solid var(--border); transition:0.2s; }
-        .toggle-btn:hover { background: #e2e8f0; }
-
-        .progress-cont { height: 3px; background: transparent; width: 100%; }
-        .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: width 0.2s; }
-
-        /* --- TABLE --- */
-        .table-wrap { flex: 1; overflow: auto; background: white; padding-bottom: 60px; }
+        .top-bar { height: 50px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+        .toggle-btn { cursor: pointer; padding: 8px; border-radius: 6px; background: #f1f5f9; color: var(--text); border: 1px solid var(--border); }
+        
+        .table-wrap { flex: 1; overflow: auto; background: #f1f5f9; padding-bottom: 60px; }
         table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.8rem; table-layout: fixed; min-width: 900px; }
         th { position: sticky; top: 0; background: #f8fafc; color: var(--text-muted); text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border); font-size: 0.7rem; text-transform: uppercase; font-weight: 800; z-index: 5; }
         td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; background: white; }
-        tr:hover td { background: #f8fafc; }
-
-        /* --- CELLS --- */
+        
         .id-grp { line-height: 1.4; display: flex; flex-direction: column; }
         .id-name { font-weight: 800; color: var(--primary); font-size: 0.9rem; }
         .id-parent { font-size: 0.75rem; color: #475569; font-weight: 500; }
@@ -73,31 +66,58 @@
         .roll-pill { font-family: 'JetBrains Mono'; font-size: 0.7rem; background: #f8fafc; color: #64748b; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0; width: fit-content; margin-bottom: 5px; font-weight: 600; }
         .rank-pill { background: #fffbeb; color: #b45309; border: 1px solid #fcd34d; font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; }
         
-        .common-row td { background: #f0fdf4; }
-        .common-row:hover td { background: #dcfce7; }
         .st-badge { background: #16a34a; color: white; padding: 3px 8px; border-radius: 20px; font-weight: 800; font-size: 0.65rem; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2); }
-
         .act-grp { display: flex; gap: 4px; justify-content: center; }
         .act-btn { cursor: pointer; padding: 6px; border-radius: 6px; color: #64748b; border: 1px solid #e2e8f0; background: white; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
-        .act-btn:hover { background: #f1f5f9; color: var(--text); border-color: #cbd5e1; }
-        .act-del:hover { background: #fef2f2; border-color: #fca5a5; color: #ef4444; }
-
-        .tb-grp { display: flex; gap: 8px; align-items: center; }
-        .tb-btn { background: white; border: 1px solid #e2e8f0; color: #334155; font-size: 0.75rem; font-weight: 700; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: 0.2s; }
-        .tb-btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+        
+        .tb-grp { display: flex; gap: 4px; align-items: center; }
+        .tb-btn { background: white; border: 1px solid #e2e8f0; color: #334155; font-size: 1.1rem; width: 34px; height: 34px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; padding: 0; }
+        .tb-btn:hover { background: #f1f5f9; border-color: #94a3b8; transform: translateY(-1px); }
         .tb-primary { background: #0f172a; color: white; border: none; }
-        .tb-primary:hover { background: #1e293b; }
+        .tb-primary:hover { background: #334155; }
+
+        .mob-lbl { display: none; }
+        
+        @media (max-width: 768px) {
+            body { background: #f1f5f9; }
+            .sidebar { position: fixed; height: 100%; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
+            .top-bar { padding: 0 8px; height: 46px; }
+            .table-wrap { background: #f1f5f9; padding: 8px; }
+            thead { display: none; }
+            table { display: block; min-width: 0; width: 100%; }
+            tbody { display: block; width: 100%; }
+            tr { display: flex; flex-wrap: wrap; background: white; margin-bottom: 10px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.03); padding: 8px; position: relative; }
+            td { display: block; border: none; padding: 3px; width: 100%; }
+            td:nth-child(2) { width: 100%; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; margin-bottom: 6px; }
+            .id-name { font-size: 0.95rem; }
+            td:nth-child(3), td:nth-child(4), td:nth-child(5) { width: 33.33%; padding: 2px; }
+            td:nth-child(3) .data-cell, td:nth-child(4) .data-cell, td:nth-child(5) .data-cell { background: #f8fafc; border-radius: 4px; padding: 4px; height: 100%; border: 1px solid #f1f5f9; }
+            td:nth-child(6) { position: absolute; top: 8px; right: 8px; width: auto; padding: 0; }
+            td:nth-child(7) { width: 100%; border-top: 1px solid #f1f5f9; margin-top: 4px; padding-top: 6px; }
+            td:first-child { display: none; }
+            .dc-row { flex-direction: column; gap: 0; margin-bottom: 2px; }
+            .dc-lbl { font-size: 0.5rem; margin-bottom: 0; }
+            .dc-val { font-size: 0.7rem; }
+            .roll-pill { font-size: 0.55rem; padding: 1px 3px; margin-bottom: 2px; }
+            .rank-pill { font-size: 0.55rem; padding: 0 3px; }
+            .act-btn { padding: 3px; height: 26px; width: 100%; font-size: 0.9rem; }
+            .mob-lbl { display: block; font-size: 0.55rem; font-weight: 800; color: #94a3b8; text-align: center; margin-bottom: 3px; border-bottom: 1px solid #e2e8f0; padding-bottom: 1px; }
+            
+            .tb-grp { gap: 3px; }
+            .tb-btn { width: 30px; height: 30px; font-size: 1rem; border-radius: 4px; }
+        }
 
         @media print {
-            .sidebar, .top-bar, .no-print, #loginOverlay { display: none !important; }
-            .table-wrap { overflow: visible; height: auto; padding: 0; }
+            .sidebar, .top-bar, .no-print, #loginOverlay, #procOverlay { display: none !important; }
+            .table-wrap { overflow: visible; height: auto; padding: 0; background: white; }
             body, .main { height: auto; overflow: visible; background: white; }
-            table { width: 100%; min-width: 0; table-layout: auto; }
-            th, td { border: 1px solid #000; padding: 6px; font-size: 10px; }
-            th { background: #eee !important; color: #000 !important; -webkit-print-color-adjust: exact; }
-            .common-row td { background: #f0fdf4 !important; -webkit-print-color-adjust: exact; }
-            .act-col, .act-header { display: none; }
-            .roll-pill { border: 1px solid #000; color: #000; }
+            table { width: 100%; display: table; }
+            thead { display: table-header-group; }
+            tbody { display: table-row-group; }
+            tr { display: table-row; border: none; box-shadow: none; margin: 0; }
+            td { display: table-cell; border: 1px solid #000; width: auto !important; }
+            th { border: 1px solid #000; }
+            .mob-lbl { display: none; }
         }
     </style>
 </head>
@@ -114,6 +134,17 @@
         </div>
     </div>
 
+    <div id="procOverlay">
+        <div class="proc-box">
+            <div class="proc-header">
+                <span style="font-weight:700; font-size:0.9rem; color:white;"><i class="ph-bold ph-cpu"></i> PROCESSING</span>
+                <span id="procPercent" style="font-family:'JetBrains Mono'; color:#4ade80;">0%</span>
+            </div>
+            <div class="proc-logs" id="procLogs"></div>
+            <button class="btn-del" style="margin-top:15px; background:#334155; color:white; border:none;" onclick="closeProc()">STOP / HIDE</button>
+        </div>
+    </div>
+
     <aside class="sidebar collapsed" id="sidebar">
         <div class="sb-header">
             <div style="font-weight:900; color:var(--primary); font-size:1rem; display:flex; align-items:center; gap:8px;">
@@ -124,7 +155,7 @@
         
         <div class="sb-content">
             <div class="panel">
-                <span class="lbl">1. SOURCE EXAM (Local Saved)</span>
+                <span class="lbl">1. SOURCE EXAM</span>
                 <label class="radio-row"><input type="radio" name="src" value="patwari2025" checked onchange="saveSrcPref(this)"> Patwar 2025</label>
                 <label class="radio-row"><input type="radio" name="src" value="vdo2025" onchange="saveSrcPref(this)"> VDO 2025</label>
                 <label class="radio-row"><input type="radio" name="src" value="fourthgrade2025" onchange="saveSrcPref(this)"> 4th Grade</label>
@@ -144,9 +175,6 @@
                 <button class="btn-go" style="margin-top:8px;" id="btnBulk" onclick="runBulk()">
                     <i class="ph-bold ph-lightning"></i> RUN BATCH SEARCH
                 </button>
-                <div style="font-size:0.65rem; color:#64748b; margin-top:6px; line-height:1.3;">
-                    * Auto-detects columns if headers exist (PATWAR, VDO, GRADE4).
-                </div>
             </div>
 
             <div style="margin-top:auto;">
@@ -159,36 +187,26 @@
     <main class="main">
         <div class="top-bar">
             <div style="display:flex; align-items:center; gap:12px;">
-                <div class="toggle-btn no-print" onclick="toggleSidebar()"><i class="ph-bold ph-list"></i></div>
+                <div class="toggle-btn" onclick="toggleSidebar()"><i class="ph-bold ph-list"></i></div>
                 <div>
-                    <div style="font-weight:800; font-size:0.9rem; color:var(--text);"></div>
-                    <div style="font-size:0.7rem; color:#64748b;">MP</div>
+                    <div style="font-weight:800; font-size:0.9rem; color:var(--text);">RESULTS</div>
                 </div>
             </div>
             
             <div class="tb-grp no-print">
-                <button class="tb-btn" title="Sort by Name" onclick="sortData('name')"><i class="ph-bold"></i> A-Z</button>
-                <button class="tb-btn" title="Sort by Matches" onclick="sortData('common')"><i class="ph-bold ph-star"></i> Matches</button>
-                <button class="tb-btn" title="Sort by Newest" onclick="sortData('time')"><i class="ph-bold ph-clock"></i> Newest</button>
+                <button class="tb-btn" title="Sort A-Z" onclick="sortData('name')"><i class="ph-bold ph-text-aa"></i></button>
+                <button class="tb-btn" title="Sort Matches" onclick="sortData('common')"><i class="ph-bold ph-star"></i></button>
+                <button class="tb-btn" title="Sort Newest" onclick="sortData('time')"><i class="ph-bold ph-clock"></i></button>
                 
-                <div style="width:1px; height:20px; background:#e2e8f0; margin:0 4px;"></div>
+                <div style="width:1px; height:18px; background:#cbd5e1; margin:0 2px;"></div>
 
                 <input type="file" id="inpImport" accept=".csv" style="display:none;" onchange="importTable(this)">
-                
-                <button class="tb-btn" onclick="document.getElementById('inpImport').click()">
-                    <i class="ph-bold ph-upload"></i>
-                </button>
-                <button class="tb-btn" onclick="saveTableCSV()">
-                    <i class="ph-bold ph-download"></i>
-                </button>
-                <button class="tb-btn tb-primary" onclick="window.print()">
-                    <i class="ph-bold ph-printer"></i>
-                </button>
+                <button class="tb-btn" title="Import" onclick="document.getElementById('inpImport').click()"><i class="ph-bold ph-upload"></i></button>
+                <button class="tb-btn" title="Export" onclick="saveTableCSV()"><i class="ph-bold ph-download"></i></button>
+                <button class="tb-btn tb-primary" title="Print" onclick="window.print()"><i class="ph-bold ph-printer"></i></button>
             </div>
         </div>
         
-        <div class="progress-cont"><div class="progress-bar" id="pBar"></div></div>
-
         <div class="table-wrap">
             <table id="dataTable">
                <thead>
@@ -206,14 +224,13 @@
             </table>
         </div>
         
-        <div style="position:absolute; bottom:0; left:0; width:100%; background:white; border-top:1px solid #e2e8f0; padding:8px 20px; font-size:0.75rem; display:flex; justify-content:space-between; color:#64748b;" class="no-print">
-            <span>Rows Loaded: <b id="procCount" style="color:var(--text)">0</b></span>
-            <span>Cloud Synced (Max 100)</span>
+        <div style="position:absolute; bottom:0; left:0; width:100%; background:white; border-top:1px solid #e2e8f0; padding:8px 20px; font-size:0.75rem; display:flex; justify-content:space-between; color:#64748b; z-index:10;" class="no-print">
+            <span>Rows: <b id="procCount" style="color:var(--text)">0</b></span>
+            <span>Sync: ON</span>
         </div>
     </main>
 
     <script>
-        // --- CONFIG ---
         const firebaseConfig = {
             apiKey: "AIzaSyAiLtCapS9zH6JMA_S3EpRm84kR90IUALI",
             authDomain: "examdata.firebaseapp.com",
@@ -225,8 +242,8 @@
         };
 
         let tableData = [];
+        let stopProc = false;
 
-        // --- INIT ---
         try {
             firebase.initializeApp(firebaseConfig);
             window.auth = firebase.auth();
@@ -234,10 +251,7 @@
             
             auth.onAuthStateChanged(u => {
                 document.getElementById('loginOverlay').style.display = u ? 'none' : 'flex';
-                if(u) {
-                    startCloudSync(); // Switch to Cloud
-                    loadSrcPref();
-                }
+                if(u) { startCloudSync(); loadSrcPref(); }
             });
         } catch(e) { console.error(e); }
 
@@ -248,55 +262,29 @@
         }
         function logout() { auth.signOut(); location.reload(); }
 
-        // --- CLOUD SYNC & SORTING ---
-        
-        // 1. Save to Firebase (With 100 Limit)
         function saveToCloud() {
-            // Limit Rule: Keep only top 100 records
-            if(tableData.length > 100) {
-                tableData = tableData.slice(0, 100);
-            }
-            
-            // Save to 'result_table' node in Firebase
-            db.ref('result_table').set(tableData).then(() => {
-                updateCount();
-            }).catch(e => console.error("Sync Error:", e));
+            if(tableData.length > 100) tableData = tableData.slice(0, 100);
+            db.ref('result_table').set(tableData).then(() => updateCount());
         }
 
-        // 2. Realtime Listener (Syncs across devices)
         function startCloudSync() {
             db.ref('result_table').on('value', (snap) => {
                 const val = snap.val();
-                // Ensure it's an array, handle null
                 tableData = val ? (Array.isArray(val) ? val : Object.values(val)) : [];
-                renderAll();
-                updateCount();
+                renderAll(); updateCount();
             });
         }
 
         function updateCount() { document.getElementById('procCount').innerText = tableData.length + " / 100"; }
 
-        // 3. Sorting Logic
         function sortData(type) {
             if(tableData.length === 0) return;
-
-            if(type === 'name') {
-                tableData.sort((a, b) => a.identity.name.localeCompare(b.identity.name));
-            } 
-            else if(type === 'common') {
-                // Sort by Common Count (High to Low)
-                tableData.sort((a, b) => b.commonCount - a.commonCount);
-            } 
-            else if(type === 'time') {
-                // Sort by Timestamp (Newest First)
-                tableData.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-            }
-            
-            // Save sorted order to cloud so it reflects everywhere
+            if(type === 'name') tableData.sort((a, b) => a.identity.name.localeCompare(b.identity.name));
+            else if(type === 'common') tableData.sort((a, b) => b.commonCount - a.commonCount);
+            else if(type === 'time') tableData.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
             saveToCloud();
         }
 
-        // --- SOURCE PREFERENCE SAVING ---
         function saveSrcPref(radio) { localStorage.setItem('prefSrcExam', radio.value); }
         function loadSrcPref() {
             const pref = localStorage.getItem('prefSrcExam');
@@ -306,24 +294,13 @@
             }
         }
 
-        // --- UTILS ---
-        // Mobile detection
         if(window.innerWidth < 768) document.body.classList.add('mobile-view');
         window.addEventListener('resize', () => {
             if(window.innerWidth < 768) document.body.classList.add('mobile-view');
-            else document.body.classList.remove('mobile-view');
         });
 
-        function toggleSidebar() { 
-            const sb = document.getElementById('sidebar');
-            sb.classList.toggle('collapsed');
-        }
-        function setBusy(b) {
-            const btn = document.getElementById('btnBulk');
-            btn.disabled = b;
-            btn.innerHTML = b ? 'PROCESSING...' : `<i class="ph-bold ph-lightning"></i> RUN BATCH SEARCH`;
-        }
-        function clearTable() { if(confirm("Delete all data from Cloud?")) { tableData = []; saveToCloud(); renderAll(); } }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+        function clearTable() { if(confirm("Delete all data?")) { tableData = []; saveToCloud(); } }
 
         const clean = (s) => s ? String(s).trim().toLowerCase().replace(/\s+/g, ' ') : '';
         function getSrcExam() {
@@ -332,112 +309,120 @@
             return 'patwari2025';
         }
 
-        // --- SEARCH LOGIC ---
+        function showProc() {
+            document.getElementById('procOverlay').style.display = 'flex';
+            document.getElementById('procLogs').innerHTML = '';
+            document.getElementById('procPercent').innerText = '0%';
+            stopProc = false;
+        }
+        function logP(msg, type='log-info') {
+            const d = document.createElement('div');
+            d.className = 'log-line ' + type;
+            d.innerText = `> ${msg}`;
+            const box = document.getElementById('procLogs');
+            box.appendChild(d);
+            box.scrollTop = box.scrollHeight;
+        }
+        function closeProc() { document.getElementById('procOverlay').style.display = 'none'; stopProc = true; }
+
         async function runManual() {
             const roll = document.getElementById('inpRoll').value;
             if(!roll) return alert("Enter Roll Number");
-            setBusy(true);
-            const res = await processRoll(roll, getSrcExam());
-            if(res) {
-                // Add to TOP
+            showProc();
+            logP(`Searching Single: ${roll}...`);
+            const res = await processRoll(roll, getSrcExam(), true);
+            if(res) { 
                 tableData.unshift(res); 
-                saveToCloud();
-                // renderAll handles by sync
-            } else { alert("No Data Found"); }
-            setBusy(false);
+                saveToCloud(); 
+                logP("Success: Record Found & Added", "log-success");
+            } else { 
+                logP("Error: No Data Found", "log-fail"); 
+            }
+            setTimeout(closeProc, 1500);
             document.getElementById('inpRoll').value = '';
         }
 
-        // --- IMPROVED BULK SEARCH ---
         async function runBulk() {
             const fileIn = document.getElementById('inpCSV');
             if(!fileIn.files.length) return alert("Select CSV File");
-            
             const srcExam = getSrcExam();
             
-            setBusy(true);
+            showProc();
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const rows = e.target.result.split('\n').map(r => r.trim()).filter(r => r);
                 const total = rows.length;
-                let newRows = [];
-
                 const headers = rows[0].split(',').map(h => h.trim().toUpperCase());
+                
                 let targetColIdx = -1;
-
                 if(srcExam === 'patwari2025') targetColIdx = headers.findIndex(h => h.includes('PATWAR'));
                 else if(srcExam === 'vdo2025') targetColIdx = headers.findIndex(h => h.includes('VDO'));
-                else if(srcExam === 'fourthgrade2025') targetColIdx = headers.findIndex(h => h.includes('GRADE') || h.includes('4TH'));
+                else if(srcExam === 'fourthgrade2025') targetColIdx = headers.findIndex(h => h.includes('GRADE'));
                 
                 let startIdx = (targetColIdx !== -1) ? 1 : 0;
+                let added = 0;
 
                 for(let i = startIdx; i < total; i++) {
+                    if(stopProc) break;
                     const cols = rows[i].split(',').map(c => c.trim());
                     let roll = null;
-
-                    if(targetColIdx !== -1 && cols[targetColIdx]) {
-                        roll = cols[targetColIdx]; 
-                    } else {
-                        if(cols.length >= 3) {
-                             if(srcExam === 'patwari2025') roll = cols[0];
-                             else if(srcExam === 'vdo2025') roll = cols[1];
-                             else if(srcExam === 'fourthgrade2025') roll = cols[2];
-                             if(!roll || isNaN(roll)) roll = null; 
-                        } 
-                        if(!roll) {
-                             if(cols.length < 2) roll = cols.find(c => !isNaN(c) && c.length > 0);
-                        }
-                    }
+                    if(targetColIdx !== -1 && cols[targetColIdx]) roll = cols[targetColIdx]; 
+                    else if(cols.length >= 3) {
+                         if(srcExam === 'patwari2025') roll = cols[0];
+                         else if(srcExam === 'vdo2025') roll = cols[1];
+                         else if(srcExam === 'fourthgrade2025') roll = cols[2];
+                    } 
+                    if(!roll && cols.length < 2) roll = cols.find(c => !isNaN(c) && c.length > 0);
                     
                     if(roll && !isNaN(roll)) {
-                         const res = await processRoll(roll, srcExam);
-                         if(res) newRows.push(res);
+                         logP(`Processing ${roll}...`);
+                         const res = await processRoll(roll, srcExam, false);
+                         if(res) { 
+                             tableData.unshift(res); 
+                             added++;
+                             logP(`Match Found!`, "log-success");
+                         } else {
+                             logP(`No Match / Data`, "log-fail");
+                         }
                     }
                     
-                    document.getElementById('pBar').style.width = ((i+1)/total*100) + '%';
-                    if(i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+                    document.getElementById('procPercent').innerText = Math.round(((i+1)/total)*100) + '%';
+                    if(i % 3 === 0) await new Promise(r => setTimeout(r, 0));
                 }
-                
-                tableData = [...newRows, ...tableData];
-                saveToCloud(); // Handles limit and sync
-                setBusy(false);
-                document.getElementById('pBar').style.width = '0%';
+                saveToCloud();
+                setTimeout(closeProc, 1000);
             };
             reader.readAsText(fileIn.files[0]);
         }
 
-        // --- CORE PROCESSOR ---
-        async function processRoll(roll, srcId) {
+        async function processRoll(roll, srcId, deepLog) {
             let srcData = null;
             try {
                 const s = await db.ref(`exams/${srcId}/byroll/${roll}`).once('value');
                 if(s.exists()) srcData = s.val();
             } catch(e){}
-
             if(!srcData) return null;
 
             const res = {
-                timestamp: Date.now(), // Added for Sorting
-                srcRoll: roll,
-                srcId: srcId,
+                timestamp: Date.now(),
+                srcRoll: roll, srcId: srcId,
                 identity: { name: srcData.candidate, father: srcData.father, mother: srcData.mother },
                 category: srcData.category || 'NA',
                 exams: { patwari2025: null, vdo2025: null, fourthgrade2025: null },
                 commonCount: 1
             };
-
             res.exams[srcId] = { ...srcData, roll: roll }; 
-
             const targets = ['patwari2025', 'vdo2025', 'fourthgrade2025'].filter(x => x !== srcId);
-            const matches = await Promise.all(targets.map(tid => findStrict(tid, res.identity)));
             
-            targets.forEach((tid, i) => {
-                if(matches[i]) {
-                    res.exams[tid] = matches[i];
+            for(let tid of targets) {
+                if(deepLog) logP(`Checking in ${tid}...`);
+                const match = await findStrict(tid, res.identity);
+                if(match) {
+                    res.exams[tid] = match;
                     res.commonCount++;
+                    if(deepLog) logP(`> Matched in ${tid}`, "log-success");
                 }
-            });
-
+            }
             return res;
         }
 
@@ -450,34 +435,29 @@
             try {
                 const snap = await db.ref(`exams/${examId}/byname`).orderByKey().startAt(nameKey).endAt(nameKey + "\uf8ff").limitToFirst(50).once('value');
                 if(!snap.exists()) return null;
-
                 const val = snap.val();
                 let candidates = [];
                 Object.values(val).forEach(v => {
                     if(typeof v === 'object') candidates.push(...Object.keys(v));
                     else candidates.push(v);
                 });
-
                 for(const r of candidates) {
                     const dSnap = await db.ref(`exams/${examId}/byroll/${r}`).once('value');
                     if(dSnap.exists()) {
                         const d = dSnap.val();
-                        if(clean(d.father) === cFather && clean(d.mother) === cMother) {
-                            return { ...d, roll: r }; 
-                        }
+                        if(clean(d.father) === cFather && clean(d.mother) === cMother) return { ...d, roll: r }; 
                     }
                 }
             } catch(e) { return null; }
             return null;
         }
 
-        // --- RENDER ---
         function renderAll() {
             const tbody = document.getElementById('tBody');
             tbody.innerHTML = '';
             
             if(tableData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:40px; color:#94a3b8;">No records loaded. Use Manual Search or Import CSV.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:40px; color:#94a3b8;">No records loaded.</td></tr>`;
                 return;
             }
 
@@ -490,15 +470,21 @@
                     <td>
                         <div class="id-grp">
                             <div class="id-name">${d.identity.name}</div>
-                            <span class="id-parent">F: ${d.identity.father}</span>
-                            <span class="id-parent">M: ${d.identity.mother}</span>
-                            <div class="id-meta"><span class="cat-badge">${d.category}</span></div>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div style="display:flex; flex-direction:column;">
+                                    <span class="id-parent">F: ${d.identity.father}</span>
+                                    <span class="id-parent">M: ${d.identity.mother}</span>
+                                </div>
+                                <span class="cat-badge">${d.category}</span>
+                            </div>
                         </div>
                     </td>`;
 
-                const mkCell = (eid) => {
+                const mkCell = (eid, label) => {
                     const data = d.exams[eid];
-                    if(!data) return `<td><span style="color:#e2e8f0; font-size:1.5rem;">—</span></td>`;
+                    const lbl = `<div class="mob-lbl">${label}</div>`;
+                    
+                    if(!data) return `<td>${lbl}<div style="text-align:center; color:#e2e8f0; font-size:1.5rem; margin-top:8px;">—</div></td>`;
                     
                     const raw = data.raw ? parseFloat(data.raw).toFixed(2) : '-';
                     const fin = (data.finalmarks || data.normalized || data.raw || 0);
@@ -507,8 +493,9 @@
                     
                     return `
                         <td>
-                            <div class="roll-pill">${roll}</div>
+                            ${lbl}
                             <div class="data-cell">
+                                <div class="roll-pill">${roll}</div>
                                 <div class="dc-row"><span class="dc-lbl">RAW</span><span class="dc-val" style="color:#64748b">${raw}</span></div>
                                 <div class="dc-row"><span class="dc-lbl">FINAL</span><span class="dc-val" style="color:var(--primary)">${finFmt}</span></div>
                                 <div style="margin-top:2px;">
@@ -518,91 +505,108 @@
                         </td>`;
                 };
 
-                const cStat = `<td style="text-align:center; vertical-align:middle;">${d.commonCount > 1 ? `<span class="st-badge">${d.commonCount}</span>` : `<span style="color:#cbd5e1; font-weight:700; font-size:0.6rem;">SINGLE</span>`}</td>`;
+                const cStat = `<td style="text-align:center; vertical-align:middle;">${d.commonCount > 1 ? `<span class="st-badge">${d.commonCount}</span>` : ``}</td>`;
 
                 const cAct = `
                     <td class="act-col">
                         <div class="act-grp">
-                            <button class="act-btn" onclick="moveRow(${idx}, -1)" title="Up"><i class="ph-bold ph-arrow-up"></i></button>
-                            <button class="act-btn" onclick="moveRow(${idx}, 1)" title="Down"><i class="ph-bold ph-arrow-down"></i></button>
-                            <button class="act-btn act-del" onclick="deleteRow(${idx})" title="Remove"><i class="ph-bold ph-x"></i></button>
+                            <button class="act-btn" onclick="moveRow(${idx}, -1)"><i class="ph-bold ph-arrow-up"></i></button>
+                            <button class="act-btn" onclick="moveRow(${idx}, 1)"><i class="ph-bold ph-arrow-down"></i></button>
+                            <button class="act-btn act-del" onclick="deleteRow(${idx})"><i class="ph-bold ph-trash"></i></button>
                         </div>
                     </td>`;
 
-                tr.innerHTML = cIdx + cId + mkCell('patwari2025') + mkCell('vdo2025') + mkCell('fourthgrade2025') + cStat + cAct;
+                tr.innerHTML = cIdx + cId + mkCell('patwari2025', 'PATWAR') + mkCell('vdo2025', 'VDO') + mkCell('fourthgrade2025', 'GRADE 4') + cStat + cAct;
                 tbody.appendChild(tr);
             });
         }
 
-        // --- ROW OPS ---
         function moveRow(idx, dir) {
             if((dir===-1 && idx===0) || (dir===1 && idx===tableData.length-1)) return;
             [tableData[idx], tableData[idx+dir]] = [tableData[idx+dir], tableData[idx]];
             saveToCloud();
         }
-        function deleteRow(idx) {
-            tableData.splice(idx,1); saveToCloud();
-        }
+        function deleteRow(idx) { tableData.splice(idx,1); saveToCloud(); }
 
-        // --- SAVE/IMPORT SYSTEM ---
         function saveTableCSV() {
             if(tableData.length === 0) return alert("Table is empty!");
             
-            // CSV Includes Headers for Auto-Detection Next Time
-            let csv = "SRC_ROLL,SRC_EXAM,PATWAR_ROLL,VDO_ROLL,GRADE4_ROLL,NAME,FATHER,MOTHER,CAT\n";
+            let csv = "SRC_ROLL,SRC_EXAM,NAME,FATHER,MOTHER,CAT,P_ROLL,P_RAW,P_FIN,P_RANK,V_ROLL,V_RAW,V_FIN,V_RANK,G_ROLL,G_RAW,G_FIN,G_RANK\n";
             
             tableData.forEach(r => {
-                const sRoll = r.srcRoll;
-                const sExam = r.srcId;
-                const pRoll = r.exams.patwari2025?.roll || "";
-                const vRoll = r.exams.vdo2025?.roll || "";
-                const gRoll = r.exams.fourthgrade2025?.roll || "";
+                const sRoll = r.srcRoll; const sExam = r.srcId;
                 const name = r.identity.name.replace(/,/g, '');
                 const fath = r.identity.father.replace(/,/g, '');
                 const moth = r.identity.mother.replace(/,/g, '');
                 const cat = r.category;
                 
-                csv += `${sRoll},${sExam},${pRoll},${vRoll},${gRoll},${name},${fath},${moth},${cat}\n`;
+                const gD = (eid) => {
+                    const d = r.exams[eid];
+                    if(!d) return ",,,";
+                    const fin = d.finalmarks || d.normalized || d.raw || 0;
+                    return `${d.roll || ''},${d.raw || 0},${fin},${d.merit || 'NA'}`;
+                };
+
+                csv += `${sRoll},${sExam},${name},${fath},${moth},${cat},${gD('patwari2025')},${gD('vdo2025')},${gD('fourthgrade2025')}\n`;
             });
             
             const blob = new Blob([csv], {type: 'text/csv'});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = `DreamLink_Saved_${new Date().toISOString().slice(0,10)}.csv`;
+            a.href = url; a.download = `Full_Backup_${new Date().toISOString().slice(0,10)}.csv`;
             document.body.appendChild(a); a.click();
         }
 
         function importTable(input) {
             if(!input.files.length) return;
             const reader = new FileReader();
-            
             reader.onload = async (e) => {
                 const rows = e.target.result.split('\n');
+                if(!rows[0].startsWith("SRC_ROLL,SRC_EXAM")) return alert("Use valid Backup CSV");
                 
-                if(!rows[0].startsWith("SRC_ROLL,SRC_EXAM")) {
-                    alert("This seems to be a raw CSV. Please use 'Run Batch Search' instead.");
-                    return;
-                }
-                
-                if(!confirm("Replace current Cloud data with this backup?")) return;
-                tableData = [];
-                setBusy(true);
+                if(!confirm("Replace current data?")) return;
+                showProc();
+                tableData = []; 
                 
                 for(let i=1; i<rows.length; i++) {
                     const r = rows[i].trim();
                     if(!r) continue;
                     const c = r.split(',');
                     
-                    const res = await processRoll(c[0], c[1]);
-                    if(res) tableData.push(res);
+                    const obj = {
+                        timestamp: Date.now() - i,
+                        srcRoll: c[0], srcId: c[1],
+                        identity: { name: c[2], father: c[3], mother: c[4] },
+                        category: c[5],
+                        exams: { patwari2025: null, vdo2025: null, fourthgrade2025: null },
+                        commonCount: 1
+                    };
+
+                    const fill = (idx, eid) => {
+                        if(c[idx] && c[idx].length > 1) {
+                            obj.exams[eid] = { roll: c[idx], raw: c[idx+1], finalmarks: c[idx+2], merit: c[idx+3] };
+                        }
+                    };
+                    fill(6, 'patwari2025');
+                    fill(10, 'vdo2025');
+                    fill(14, 'fourthgrade2025');
+
+                    let cnt = 0;
+                    if(obj.exams.patwari2025) cnt++;
+                    if(obj.exams.vdo2025) cnt++;
+                    if(obj.exams.fourthgrade2025) cnt++;
+                    obj.commonCount = cnt;
+
+                    tableData.push(obj);
+                    logP(`Loaded: ${c[2]}`, 'log-info');
+                    document.getElementById('procPercent').innerText = Math.round(((i)/rows.length)*100) + '%';
                     
-                    document.getElementById('pBar').style.width = ((i)/rows.length*100) + '%';
-                    if(i%10===0) await new Promise(r => setTimeout(r,0));
+                    if(i%50===0) await new Promise(r => setTimeout(r,0));
                 }
                 
                 saveToCloud();
-                setBusy(false);
-                document.getElementById('pBar').style.width = '0%';
+                logP("Restore Complete", "log-success");
+                setTimeout(closeProc, 1000);
                 input.value = ''; 
             };
             reader.readAsText(input.files[0]);
